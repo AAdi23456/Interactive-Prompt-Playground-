@@ -1,19 +1,18 @@
-import { useState, useEffect, useCallback, useRef, useReducer } from 'react';
-import type { PromptHistory } from '../types/prompt';
+'use client';
 
-const STORAGE_KEY = 'prompt_histories';
-const MAX_HISTORIES = 10;
+import { useReducer, useCallback, useRef, useEffect } from 'react';
+import { PromptRun } from '../types/prompt';
 
-type HistoryAction = 
-  | { type: 'ADD', history: PromptHistory }
+type HistoryAction =
+  | { type: 'ADD', history: PromptRun }
   | { type: 'DELETE', id: string }
   | { type: 'CLEAR' }
-  | { type: 'SET', histories: PromptHistory[] };
+  | { type: 'SET', histories: PromptRun[] };
 
-function historyReducer(state: PromptHistory[], action: HistoryAction): PromptHistory[] {
+function historyReducer(state: PromptRun[], action: HistoryAction): PromptRun[] {
   switch (action.type) {
     case 'ADD':
-      return [action.history, ...state].slice(0, MAX_HISTORIES);
+      return [action.history, ...state];
     case 'DELETE':
       return state.filter(h => h.id !== action.id);
     case 'CLEAR':
@@ -25,92 +24,68 @@ function historyReducer(state: PromptHistory[], action: HistoryAction): PromptHi
   }
 }
 
-// Helper function to check if two histories are duplicates
-const isDuplicate = (history1: PromptHistory, history2: PromptHistory): boolean => {
-  // Check if prompts were created within 1 second of each other
-  const timeDiff = Math.abs(
-    new Date(history1.timestamp).getTime() - new Date(history2.timestamp).getTime()
-  );
-  if (timeDiff > 1000) return false;
-
-  // Check if the content is the same
+const isDuplicate = (history1: PromptRun, history2: PromptRun): boolean => {
   return (
-    history1.request.userPrompt === history2.request.userPrompt &&
-    history1.request.systemPrompt === history2.request.systemPrompt &&
-    history1.request.model === history2.request.model &&
-    JSON.stringify(history1.request.parameterSets) === JSON.stringify(history2.request.parameterSets)
+    history1.systemPrompt === history2.systemPrompt &&
+    history1.userPrompt === history2.userPrompt &&
+    history1.model === history2.model &&
+    JSON.stringify(history1.parameters) === JSON.stringify(history2.parameters)
   );
 };
 
-// Helper function to safely parse localStorage data
-const getStoredHistories = (): PromptHistory[] => {
+const STORAGE_KEY = 'prompt_history';
+
+const getStoredHistories = (): PromptRun[] => {
+  if (typeof window === 'undefined') return [];
+
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return [];
-    
+
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
-    
+
     return parsed;
   } catch (error) {
-    console.error('Error reading from localStorage:', error);
+    console.error('Error reading history from localStorage:', error);
     return [];
   }
 };
 
-// Helper function to safely save to localStorage
-const saveToLocalStorage = (histories: PromptHistory[]): void => {
+const saveToLocalStorage = (histories: PromptRun[]): void => {
+  if (typeof window === 'undefined') return;
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(histories));
   } catch (error) {
-    console.error('Error saving to localStorage:', error);
+    console.error('Error saving history to localStorage:', error);
   }
 };
 
 export function usePromptHistory() {
-  const [histories, dispatch] = useReducer(historyReducer, [], () => getStoredHistories());
-  const [version, setVersion] = useState(0); // Force re-render when needed
-  const lastAddedHistoryRef = useRef<PromptHistory | null>(null);
+  const [histories, dispatch] = useReducer(historyReducer, [], getStoredHistories);
+  const lastAddedHistoryRef = useRef<PromptRun | null>(null);
 
-  // Save to localStorage whenever histories change
   useEffect(() => {
-    console.log('Saving histories to localStorage:', histories);
     saveToLocalStorage(histories);
   }, [histories]);
 
-  const addHistory = useCallback((history: PromptHistory) => {
-    console.log('Adding new history:', history);
-    
-    // Check for duplicates
+  const addHistory = useCallback((history: PromptRun) => {
+    // Check if this history is a duplicate of the last added one
     if (lastAddedHistoryRef.current && isDuplicate(lastAddedHistoryRef.current, history)) {
-      console.log('Duplicate detected with last added history');
       return;
     }
 
-    // Check if very similar history exists in recent entries
-    const isDuplicateOfRecent = histories.some(h => isDuplicate(h, history));
-    if (isDuplicateOfRecent) {
-      console.log('Duplicate detected in recent history');
-      return;
-    }
-
-    // Add new history
     lastAddedHistoryRef.current = history;
     dispatch({ type: 'ADD', history });
-    setVersion(v => v + 1); // Force re-render
-  }, [histories, isDuplicate]);
+  }, []);
 
   const deleteHistory = useCallback((id: string) => {
-    console.log('Deleting history with id:', id);
     dispatch({ type: 'DELETE', id });
-    setVersion(v => v + 1); // Force re-render
   }, []);
 
   const clearHistories = useCallback(() => {
-    console.log('Clearing all histories');
     dispatch({ type: 'CLEAR' });
-    lastAddedHistoryRef.current = null;
-    setVersion(v => v + 1); // Force re-render
   }, []);
 
   return {
@@ -118,6 +93,5 @@ export function usePromptHistory() {
     addHistory,
     deleteHistory,
     clearHistories,
-    version, // Export version to force child component updates
   };
 } 

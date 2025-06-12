@@ -16,14 +16,14 @@ function generateParameterCombinations(parameterSets: BatchPromptRequest['parame
   const combinations: PromptParameters[] = [];
   
   for (const temperature of parameterSets.temperatures) {
-    for (const maxTokens of parameterSets.maxTokens) {
-      for (const frequencyPenalty of parameterSets.frequencyPenalties) {
-        for (const presencePenalty of parameterSets.presencePenalties) {
+    for (const max_tokens of parameterSets.max_tokens) {
+      for (const frequency_penalty of parameterSets.frequency_penalties) {
+        for (const presence_penalty of parameterSets.presence_penalties) {
           combinations.push({
             temperature,
-            maxTokens,
-            frequencyPenalty,
-            presencePenalty,
+            max_tokens,
+            frequency_penalty,
+            presence_penalty,
           });
         }
       }
@@ -61,90 +61,78 @@ function analyzeText(text: string): { wordCount: number; sentiment: 'positive' |
 
 export async function POST(request: Request) {
   try {
-    const body: BatchPromptRequest = await request.json();
-    const { model, systemPrompt, userPrompt, parameterSets } = body;
-    
-    // Try to use the backend API if available
-    try {
-      const backendResponse = await fetch(`${BACKEND_API_URL}/prompt/batch`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
-      
-      if (backendResponse.ok) {
-        const data = await backendResponse.json();
-        return NextResponse.json(data);
+    const body = await request.json();
+    const { systemPrompt, userPrompt, model, parameters } = body;
+
+    // Generate all parameter combinations
+    const combinations: PromptParameters[] = [];
+    const temperatures = Array.isArray(parameters.temperature) ? parameters.temperature : [parameters.temperature];
+    const tokens = Array.isArray(parameters.max_tokens) ? parameters.max_tokens : [parameters.max_tokens];
+    const freqPenalties = Array.isArray(parameters.frequency_penalty) ? parameters.frequency_penalty : [parameters.frequency_penalty];
+    const presPenalties = Array.isArray(parameters.presence_penalty) ? parameters.presence_penalty : [parameters.presence_penalty];
+
+    for (const temperature of temperatures) {
+      for (const max_tokens of tokens) {
+        for (const frequency_penalty of freqPenalties) {
+          for (const presence_penalty of presPenalties) {
+            combinations.push({
+              temperature,
+              max_tokens,
+              frequency_penalty,
+              presence_penalty,
+            });
+          }
+        }
       }
-      // If backend is not available, fall back to using OpenAI directly
-      console.log("Backend not available, using OpenAI directly");
-    } catch (backendError) {
-      console.error("Error connecting to backend:", backendError);
-      // Proceed with direct OpenAI connection
     }
-    
-    // Fallback to direct OpenAI connection
-    const combinations = generateParameterCombinations(parameterSets);
-    const results: PromptResult[] = [];
-    
-    // Run API calls in parallel with a concurrency limit
-    const CONCURRENCY_LIMIT = 3;
-    for (let i = 0; i < combinations.length; i += CONCURRENCY_LIMIT) {
-      const batch = combinations.slice(i, i + CONCURRENCY_LIMIT);
-      const promises = batch.map(async (parameters) => {
-        const startTime = Date.now();
+
+    // Call OpenAI API for each combination
+    const results = await Promise.all(
+      combinations.map(async (params) => {
         try {
-          const completion = await openai.createChatCompletion({
-            model,
-            messages: [
-              ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
-              { role: 'user' as const, content: userPrompt }
-            ],
-            temperature: parameters.temperature,
-            max_tokens: parameters.maxTokens,
-            frequency_penalty: parameters.frequencyPenalty,
-            presence_penalty: parameters.presencePenalty,
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+              ],
+              temperature: params.temperature,
+              max_tokens: params.max_tokens,
+              frequency_penalty: params.frequency_penalty,
+              presence_penalty: params.presence_penalty,
+            }),
           });
-          
-          const response = completion.data.choices[0]?.message?.content || '';
-          const analysis = analyzeText(response);
-          
+
+          const data = await response.json();
           return {
-            parameters,
-            response,
-            usage: completion.data.usage,
-            analysis,
-            elapsedTimeMs: Date.now() - startTime,
+            parameters: params,
+            response: data.choices[0].message.content,
           };
-        } catch (error: any) {
-          console.error('OpenAI API error:', error);
+        } catch (error) {
+          console.error('Error calling OpenAI:', error);
           return {
-            parameters,
-            response: '',
-            error: error.message || 'Failed to generate response',
-            elapsedTimeMs: Date.now() - startTime,
+            parameters: params,
+            error: 'Failed to generate response',
           };
         }
-      });
-      
-      const batchResults = await Promise.all(promises);
-      results.push(...batchResults);
-    }
-    
-    const response: BatchPromptResponse = {
+      })
+    );
+
+    return NextResponse.json({
       success: true,
       results,
-    };
-    
-    return NextResponse.json(response);
-  } catch (error: any) {
-    console.error('Error in compare route:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Internal server error',
-      results: [],
-    } as BatchPromptResponse, { status: 500 });
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to process request' },
+      { status: 500 }
+    );
   }
 } 

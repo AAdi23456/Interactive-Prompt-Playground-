@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import PromptComparison from './PromptComparison';
-import { PromptHistory } from '../types/prompt';
+import { PromptRun } from '../types/prompt';
 
 // Mock the diff library
 jest.mock('diff', () => ({
@@ -14,82 +14,54 @@ jest.mock('diff', () => ({
 }));
 
 describe('PromptComparison', () => {
-  const mockSessions: [PromptHistory, PromptHistory] = [
+  const mockSessions: [PromptRun, PromptRun] = [
     {
       id: 'session1',
       timestamp: '2023-06-10T10:00:00Z',
-      request: {
-        model: 'gpt-3.5-turbo',
-        systemPrompt: 'You are a helpful assistant',
-        userPrompt: 'Tell me about AI',
-        parameterSets: {
-          temperatures: [0.7],
-          maxTokens: [150],
-          frequencyPenalties: [0],
-          presencePenalties: [0]
-        }
+      systemPrompt: 'You are a helpful assistant',
+      userPrompt: 'Tell me about AI',
+      model: 'gpt-3.5-turbo',
+      parameters: {
+        temperature: 0.7,
+        max_tokens: 150,
+        frequency_penalty: 0,
+        presence_penalty: 0
       },
-      response: {
-        success: true,
-        results: [
-          {
-            parameters: {
-              temperature: 0.7,
-              maxTokens: 150,
-              frequencyPenalty: 0,
-              presencePenalty: 0
-            },
-            response: 'This is an example test in text',
-            usage: {
-              prompt_tokens: 20,
-              completion_tokens: 30,
-              total_tokens: 50
-            },
-            analysis: {
-              wordCount: 6,
-              sentiment: 'neutral'
-            }
-          }
-        ]
-      }
+      results: [
+        {
+          parameters: {
+            temperature: 0.7,
+            max_tokens: 150,
+            frequency_penalty: 0,
+            presence_penalty: 0
+          },
+          response: 'This is an example test in text'
+        }
+      ]
     },
     {
       id: 'session2',
       timestamp: '2023-06-10T11:00:00Z',
-      request: {
-        model: 'gpt-3.5-turbo',
-        systemPrompt: 'You are a creative assistant',
-        userPrompt: 'Tell me about AI',
-        parameterSets: {
-          temperatures: [0.9],
-          maxTokens: [200],
-          frequencyPenalties: [0],
-          presencePenalties: [0]
-        }
+      systemPrompt: 'You are a creative assistant',
+      userPrompt: 'Tell me about AI',
+      model: 'gpt-3.5-turbo',
+      parameters: {
+        temperature: 0.9,
+        max_tokens: 200,
+        frequency_penalty: 0,
+        presence_penalty: 0
       },
-      response: {
-        success: true,
-        results: [
-          {
-            parameters: {
-              temperature: 0.9,
-              maxTokens: 200,
-              frequencyPenalty: 0,
-              presencePenalty: 0
-            },
-            response: 'This is an example test with differences',
-            usage: {
-              prompt_tokens: 20,
-              completion_tokens: 35,
-              total_tokens: 55
-            },
-            analysis: {
-              wordCount: 7,
-              sentiment: 'neutral'
-            }
-          }
-        ]
-      }
+      results: [
+        {
+          parameters: {
+            temperature: 0.9,
+            max_tokens: 200,
+            frequency_penalty: 0,
+            presence_penalty: 0
+          },
+          response: 'This is an example test with differences'
+        }
+      ]
     }
   ];
 

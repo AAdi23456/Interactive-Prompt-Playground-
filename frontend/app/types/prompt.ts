@@ -27,9 +27,9 @@ export interface PromptResponse {
 
 export interface PromptParameters {
   temperature: number;
-  maxTokens: number;
-  frequencyPenalty: number;
-  presencePenalty: number;
+  max_tokens: number;
+  presence_penalty: number;
+  frequency_penalty: number;
 }
 
 export interface ParameterSets {
@@ -39,31 +39,38 @@ export interface ParameterSets {
   presencePenalties: number[];
 }
 
+export interface PromptResult {
+  output?: string;
+  response?: string;
+  parameters: PromptParameters;
+  error?: string;
+}
+
 export interface BatchPromptRequest {
   model: string;
-  systemPrompt: string;
+  systemPrompt?: string;
   userPrompt: string;
-  parameterSets: ParameterSets;
-}
-
-export interface TokenUsage {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-}
-
-export interface PromptResult {
-  parameters: PromptParameters;
-  response: string;
-  error?: string;
-  usage?: TokenUsage;
-  analysis?: TextAnalysis;
-  elapsedTimeMs?: number;
+  parameterSets: {
+    temperatures: number[];
+    max_tokens: number[];
+    frequency_penalties: number[];
+    presence_penalties: number[];
+  };
 }
 
 export interface BatchPromptResponse {
   success: boolean;
+  results: PromptResult[];
   error?: string;
+}
+
+export interface PromptRun {
+  id: string;
+  timestamp: string;
+  systemPrompt: string;
+  userPrompt: string;
+  model: string;
+  parameters: PromptParameters;
   results: PromptResult[];
 }
 

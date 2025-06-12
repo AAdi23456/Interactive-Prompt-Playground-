@@ -12,4 +12,17 @@ Object.defineProperty(window, 'localStorage', {
     clear: jest.fn()
   },
   writable: true
-}); 
+});
+
+// Mock the next/navigation hooks
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+  useSearchParams: () => ({
+    get: jest.fn(),
+  }),
+  usePathname: () => '',
+})); 

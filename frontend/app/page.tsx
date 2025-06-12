@@ -13,10 +13,10 @@ export default function Home() {
 
   const generateCombinations = (parameters: any) => {
     const combinations: any[] = [];
-    const temps = parameters.temperature || [0.7];
-    const tokens = parameters.max_tokens || [150];
-    const freqs = parameters.frequency_penalty || [0];
-    const presence = parameters.presence_penalty || [0];
+    const temps = Array.isArray(parameters.temperature) ? parameters.temperature : [parameters.temperature];
+    const tokens = Array.isArray(parameters.max_tokens) ? parameters.max_tokens : [parameters.max_tokens];
+    const freqs = Array.isArray(parameters.frequency_penalty) ? parameters.frequency_penalty : [parameters.frequency_penalty];
+    const presence = Array.isArray(parameters.presence_penalty) ? parameters.presence_penalty : [parameters.presence_penalty];
 
     for (const temp of temps) {
       for (const token of tokens) {
