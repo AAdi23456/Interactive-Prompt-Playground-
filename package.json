@@ -1,0 +1,15 @@
+{
+  "name": "interactive-prompt-playground",
+  "version": "1.0.0",
+  "description": "Interactive playground for exploring OpenAI parameters",
+  "scripts": {
+    "frontend": "cd frontend && npm run dev",
+    "backend": "npm run start:dev",
+    "dev": "powershell \"Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd frontend && npm run dev' ; Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd backend && npm run start:dev'\"",
+    "install-all": "npm install && cd frontend && npm install && cd ../backend && npm install"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
